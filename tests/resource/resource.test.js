@@ -14,6 +14,26 @@ describe('Resource(basic)', function() {
       username: { type: test.Sequelize.STRING },
       email:    { type: test.Sequelize.STRING, unique: true, validate: { isEmail: true } }
     }, {
+      hooks: {
+        beforeValidate: function(instance, param1, param2) {
+          if (param2) {
+            // sequelize 2.x
+            if (instance.username === 'force a validation error') {
+              var error = { name: "beforeValidate error returned" };
+              param2(new test.Sequelize.ValidationError('Validation error', error), instance);
+            } else {
+              param2(null, instance);
+            }
+          } else {
+            // sequelize 1.x
+            if (instance.username === 'force a validation error') {
+              param1({ name: "beforeValidate error returned" }, instance);
+            } else {
+              param1(null, instance);
+            }
+          }
+        }
+      },
       underscored: true,
       timestamps: false
     });
@@ -84,6 +104,17 @@ describe('Resource(basic)', function() {
       });
     });
 
+    it('should fail on beforeValidate', function(done) {
+      request.post({
+        url: test.baseUrl + '/users',
+        json: { username: 'force a validation error', email: 'arthur@gmail.com' }
+      }, function(error, response, body) {
+        var result = _.isObject(body) ? body : JSON.parse(body);
+        expect(response.statusCode).to.equal(400);
+        expect(result).to.contain.keys('error');
+        done();
+      });
+    });
   });
 
   describe('read', function() {
@@ -148,6 +179,28 @@ describe('Resource(basic)', function() {
           delete record.id;
           userData.email = 'emma@fmail.co.uk';
           expect(record).to.eql(userData);
+          done();
+        });
+      });
+    });
+
+    it('should fail on beforeValidate', function(done) {
+      var userData = { username: 'jamez', email: 'jamez@gmail.com' };
+      request.post({
+        url: test.baseUrl + '/users',
+        json: userData
+      }, function(error, response, body) {
+        expect(error).is.null;
+        expect(response.headers.location).is.not.empty;
+
+        var path = response.headers.location;
+        request.put({
+          url: test.baseUrl + path,
+          json: { username: 'force a validation error' }
+        }, function(err, response, body) {
+          var result = _.isObject(body) ? body : JSON.parse(body);
+          expect(response.statusCode).to.equal(400);
+          expect(result).to.contain.keys('error');
           done();
         });
       });
