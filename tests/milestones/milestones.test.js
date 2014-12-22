@@ -47,6 +47,29 @@ describe('Milestones', function() {
 
   // TESTS
   describe('general behavior', function() {
+    it('should stack milestones', function(done) {
+      var results = [];
+      test.userResource.read.fetch(function(req, res, context) {
+        results.push(1);
+        context.continue();
+      });
+
+      test.userResource.read.fetch(function(req, res, context) {
+        results.push(2);
+        context.continue();
+      });
+
+      test.userResource.read.fetch(function(req, res, context) {
+        results.push(3);
+        context.continue();
+      });
+
+      request.get({ url: test.baseUrl + '/users/1' }, function(err, response, body) {
+        expect(results).to.eql([3, 2, 1]);
+        done();
+      });
+    });
+
     it('should skip the main action if context.skip is called in before hook', function(done) {
       var SkipMiddleware = {
         results: {
@@ -83,9 +106,9 @@ describe('Milestones', function() {
   describe('start', function() {
     // Run at the beginning of the request. Defaults to passthrough.
     it('should support chaining', function(done) {
-      var startCount;
+      var startCount = 0;
       test.userResource.read.start(function(req, res, context) {
-        startCount = 1;
+        startCount++;
         return context.continue();
       });
 
