@@ -47,7 +47,7 @@ describe('Milestones', function() {
 
   // TESTS
   describe('general behavior', function() {
-    it('should stack milestones', function(done) {
+    it('should stack user milestones in a FIFO fashion, but always have epilogue milestones execute last ', function(done) {
       var results = [];
       test.userResource.read.fetch(function(req, res, context) {
         results.push(1);
@@ -61,11 +61,12 @@ describe('Milestones', function() {
 
       test.userResource.read.fetch(function(req, res, context) {
         results.push(3);
-        context.continue();
+        context.skip();
       });
 
       request.get({ url: test.baseUrl + '/users/1' }, function(err, response, body) {
-        expect(results).to.eql([3, 2, 1]);
+        expect(results).to.eql([1, 2, 3]);  // user fetch hooks stacked correctly
+        expect(body).to.be.empty; // epilogue's fetch was delayed until the end, and skipped
         done();
       });
     });
