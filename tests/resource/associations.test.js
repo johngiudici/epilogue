@@ -258,6 +258,51 @@ describe('Resource(associations)', function() {
       });
     });
 
+    it('should search associated fields when using the q parameter', function(done) {
+      var records = [
+        {
+          person: { name: 'John White' },
+          address: { street: '100 Blackwater Street' }
+        },
+        {
+          person: { name: 'Joe Black' },
+          address: { street: '200 Whitewater Drive' }
+        },
+        {
+          person: { name: 'Jen Smith' },
+          address: { street: '300 Third Avenue' }
+        }
+      ];
+
+      Promise.resolve(records).each(function(record) {
+        return Promise.all([
+          test.models.Person.create(record.person),
+          test.models.Address.create(record.address)
+        ]).spread(function(person, address) {
+          return person.setAddy(address);
+        });
+      }).then(function() {
+        request.get({
+          url: test.baseUrl + '/people?q=Black'
+        }, function(error, response, body) {
+          console.log(body);
+          expect(response.statusCode).to.equal(200);
+          var result = _.isObject(body) ? body : JSON.parse(body);
+          expect(result.length).to.equal(2);
+
+          expect(result[0].name).to.equal('John White');
+          expect(result[0]).to.include.key('addy');
+          expect(result[0].addy.street).to.equal('100 Blackwater Street');
+
+          expect(result[1].name).to.equal('Joe Black');
+          expect(result[1]).to.include.key('addy');
+          expect(result[1].addy.street).to.equal('200 Whitewater Drive');
+
+          done();
+        })
+      });
+    });
+
     it('should include two associations', function(done) {
       var hobbyRecords = [
         { name: 'programming' },
